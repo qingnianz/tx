@@ -84,7 +84,7 @@ public class LocalMessageTableTXTemplate implements TXTemplate {
                     @Override
                     public void afterCommit() {
                         //Tips 队列是无界阻塞队列，不需要异步投递，不会影响该方法耗时
-                        TxMsgQueueFactory.getTxMsgQueue().put(tlmtm);
+                        TxMsgQueueFactory.putMsgToQueue(tlmtm);
                     }
                 });
             }

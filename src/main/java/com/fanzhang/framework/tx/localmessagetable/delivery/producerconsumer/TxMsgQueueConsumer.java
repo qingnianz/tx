@@ -18,24 +18,23 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class TxMsgQueueConsumer implements InitializingBean {
     private final ExecutorService executor;
 
-    private TXProperties txProperties;
     private DeliveryMan deliveryMan;
     private int nThreads;
 
     public TxMsgQueueConsumer(TXProperties txProperties, DeliveryMan deliveryMan) {
-        this.txProperties = txProperties;
         this.deliveryMan = deliveryMan;
         nThreads = txProperties.getLocalMessageTable().getProducerConsumer().getConsumerThreadNum();
         log.debug("TXMsgQueueConsumerPool the number of thread is {}", nThreads);
         executor = new ThreadPoolExecutor(nThreads, nThreads,
                 0L, TimeUnit.MILLISECONDS,
-                new LinkedBlockingQueue<Runnable>(), new TxMsgQueueConsumerThreadFactory());
+                new ArrayBlockingQueue<>(nThreads), new TxMsgQueueConsumerThreadFactory());
     }
 
     @Override
     public void afterPropertiesSet() throws Exception {
-        for (int i = 0; i < nThreads; i++) {
-            executor.submit(new TxMsgQueueDeliveryTask(deliveryMan));
+        new TxMsgQueueFactory(nThreads);
+        for (int index = 0; index < nThreads; index++) {
+            executor.submit(new TxMsgQueueDeliveryTask(deliveryMan, index));
         }
         // FIXME 启动默认执行一下数据库待处理的（存在多副本争抢问题，选主执行？？？2022-08-23: select ... for update）
         Thread oldDataProcessThread = new Thread(() -> deliveryMan.deliveryDatabaseToBeDelivered());
@@ -46,16 +45,18 @@ public class TxMsgQueueConsumer implements InitializingBean {
 
     static class TxMsgQueueDeliveryTask implements Runnable {
         private DeliveryMan deliveryMan;
+        private int queueIndex;
 
-        public TxMsgQueueDeliveryTask(DeliveryMan deliveryMan) {
+        public TxMsgQueueDeliveryTask(DeliveryMan deliveryMan, int queueIndex) {
             this.deliveryMan = deliveryMan;
+            this.queueIndex = queueIndex;
         }
 
         @Override
         public void run() {
             while (true) {
                 try {
-                    TransactionLocalMessageTableModel txMsg = TxMsgQueueFactory.getTxMsgQueue().take();
+                    TransactionLocalMessageTableModel txMsg = TxMsgQueueFactory.getTxMsgQueue(queueIndex).take();
                     if (txMsg == null)
                         continue;
                     deliveryMan.deliveryOne(txMsg, true);

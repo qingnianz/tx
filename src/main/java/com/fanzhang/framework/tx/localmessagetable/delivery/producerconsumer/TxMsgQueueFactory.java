@@ -2,6 +2,9 @@ package com.fanzhang.framework.tx.localmessagetable.delivery.producerconsumer;
 
 import com.fanzhang.framework.tx.localmessagetable.model.TransactionLocalMessageTableModel;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedTransferQueue;
 
@@ -12,10 +15,20 @@ import java.util.concurrent.LinkedTransferQueue;
  */
 public final class TxMsgQueueFactory {
 
-    private static final TxMsgQueueManager TX_MSG_QUEUE_MANAGER = new TxMsgQueueManager();
+    private static List<TxMsgQueueManager> TX_MSG_QUEUE_MANAGERS;
+    private static int queueCount;
 
-    public static TxMsgQueueManager getTxMsgQueue() {
-        return TX_MSG_QUEUE_MANAGER;
+    public TxMsgQueueFactory(int queueCount) {
+        TxMsgQueueFactory.queueCount = queueCount;
+        TxMsgQueueFactory.TX_MSG_QUEUE_MANAGERS = new ArrayList<>(queueCount);
+    }
+
+    public static TxMsgQueueManager getTxMsgQueue(int queueIndex) {
+        return Optional.ofNullable(TX_MSG_QUEUE_MANAGERS.get(queueIndex)).orElseGet(TxMsgQueueManager::new);
+    }
+
+    public static void putMsgToQueue(TransactionLocalMessageTableModel txMsg) {
+        getTxMsgQueue(txMsg.getDestination().hashCode() % queueCount).put(txMsg);
     }
 
     /**

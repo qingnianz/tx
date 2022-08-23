@@ -161,7 +161,7 @@ public final class DeliveryMan {
                 localMessageDeliveredHandle(localMessage);
             } else {
                 localMessageDeliveryFailHandle(localMessage, true, sendStatus.name());
-                TxMsgQueueFactory.getTxMsgQueue().put(localMessage);
+                TxMsgQueueFactory.putMsgToQueue(localMessage);
             }
         }
 
@@ -170,7 +170,7 @@ public final class DeliveryMan {
             String throwableMessage = throwable.getMessage();
             log.error("DeliveryMan processing local message occur exception: {}", throwableMessage);
             localMessageDeliveryFailHandle(localMessage, true, throwableMessage);
-            TxMsgQueueFactory.getTxMsgQueue().put(localMessage);
+            TxMsgQueueFactory.putMsgToQueue(localMessage);
         }
     }
 
