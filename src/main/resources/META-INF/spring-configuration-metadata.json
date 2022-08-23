@@ -1,0 +1,47 @@
+{
+  "hints": [],
+  "properties": [
+    {
+      "name": "tx.local-message-table.enable",
+      "type": "java.lang.Boolean",
+      "defaultValue": true,
+      "description": "是否启用本地消息表"
+    },
+    {
+      "name": "tx.local-message-table.maxRetryCount",
+      "type": "java.lang.Integer",
+      "defaultValue": 16,
+      "description": "本地消息投递最大重试次数"
+    },
+    {
+      "name": "tx.local-message-table.cron.enable",
+      "type": "java.lang.Boolean",
+      "defaultValue": false,
+      "description": "是否启用定时任务方式"
+    },
+    {
+      "name": "tx.local-message-table.cron.fixedDelay",
+      "type": "java.lang.Long",
+      "defaultValue": 10000,
+      "description": "定时任务固定延时"
+    },
+    {
+      "name": "tx.local-message-table.cron.deliveryMode",
+      "type": "java.lang.Enum",
+      "defaultValue": "EACH",
+      "description": "定时任务投递模式"
+    },
+    {
+      "name": "tx.local-message-table.producerconsumer.enable",
+      "type": "java.lang.Boolean",
+      "defaultValue": true,
+      "description": "是否启用生产者/消费者方式"
+    },
+    {
+      "name": "tx.local-message-table.producerconsumer.consumerThreadNum",
+      "type": "java.lang.Integer",
+      "defaultValue": 1,
+      "description": "消费者线程数"
+    }
+  ]
+}

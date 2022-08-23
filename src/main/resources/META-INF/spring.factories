@@ -1,0 +1,3 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+com.fanzhang.framework.tx.TXAutoConfiguration,\
+com.fanzhang.framework.tx.localmessagetable.TXLocalMessageTableAutoConfiguration
