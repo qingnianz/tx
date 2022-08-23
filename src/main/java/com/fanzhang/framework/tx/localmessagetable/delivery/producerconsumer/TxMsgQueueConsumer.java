@@ -37,7 +37,7 @@ public class TxMsgQueueConsumer implements InitializingBean {
         for (int i = 0; i < nThreads; i++) {
             executor.submit(new TxMsgQueueDeliveryTask(deliveryMan));
         }
-        // TODO 启动默认执行一下数据库待处理的（存在多副本争抢问题，选主执行？？？）
+        // FIXME 启动默认执行一下数据库待处理的（存在多副本争抢问题，选主执行？？？2022-08-23: select ... for update）
         Thread oldDataProcessThread = new Thread(() -> deliveryMan.deliveryDatabaseToBeDelivered());
         oldDataProcessThread.setName("oldDataProcessThread");
         oldDataProcessThread.setDaemon(true);

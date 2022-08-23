@@ -19,6 +19,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.GenericMessage;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -38,6 +40,7 @@ public final class DeliveryMan {
     private static final String CREAT_TIME = "create_time";
     private static final String ID = "id";
     private static final String LIMIT_1000 = "limit 1000";
+    private static final String SELECT_LOCK = " for update ";
     private static final int NOT = 0;
 
     @Autowired
@@ -49,39 +52,44 @@ public final class DeliveryMan {
     @Autowired
     private RedisTemplate redisTemplate;
     @Autowired
+    private TransactionTemplate transactionTemplate;
+    @Autowired
     private ObjectMapper objectMapper;
 
     /**
-     *
+     * 投递当前消息表中所有待投递的消息
      */
     public void deliveryDatabaseToBeDelivered() {
-        QueryWrapper<TransactionLocalMessageTableModel> wrapper
-                = new QueryWrapper<TransactionLocalMessageTableModel>()
-                //未投递或投递失败
-                .eq(MESSAGE_STATUS, NOT)
-                //非死信
-                .eq(DIED, NOT)
-                //保持创建顺序
-                .orderByAsc(CREAT_TIME, ID)
-                // 前1000条
-                .last(LIMIT_1000);
-        List<TransactionLocalMessageTableModel> transactionLocalMessageTableModels = localMessageTableMapper.selectList(wrapper);
-        if (transactionLocalMessageTableModels != null && !transactionLocalMessageTableModels.isEmpty()) {
-            CronDeliveryMode mode = txProperties.getLocalMessageTable().getCron().getDeliveryMode();
-            switch (mode) {
-                case EACH_AFTER_GROUP:
-                    Map<String, List<TransactionLocalMessageTableModel>> groupedModels = transactionLocalMessageTableModels.stream().collect(Collectors.groupingBy(TransactionLocalMessageTableModel::getDestination));
-                    groupedModels.keySet().parallelStream().forEach(localMessageKey ->
-                            groupedModels.get(localMessageKey).forEach(localMessage -> deliveryOne(localMessage, false)));
-                    break;
-                case RANDOM_EACH:
-                    transactionLocalMessageTableModels.parallelStream().forEach(localMessage -> deliveryOne(localMessage, false));
-                    break;
-                default:
-                    transactionLocalMessageTableModels.forEach(localMessage -> deliveryOne(localMessage, false));
-            }
+        transactionTemplate.execute((TransactionCallback<Void>) status -> {
+            QueryWrapper<TransactionLocalMessageTableModel> wrapper
+                    = new QueryWrapper<TransactionLocalMessageTableModel>()
+                    //未投递或投递失败
+                    .eq(MESSAGE_STATUS, NOT)
+                    //非死信
+                    .eq(DIED, NOT)
+                    //保持创建顺序
+                    .orderByAsc(CREAT_TIME, ID)
+                    // 前1000条
+                    .last(LIMIT_1000 + SELECT_LOCK);
+            List<TransactionLocalMessageTableModel> transactionLocalMessageTableModels = localMessageTableMapper.selectList(wrapper);
+            if (transactionLocalMessageTableModels != null && !transactionLocalMessageTableModels.isEmpty()) {
+                CronDeliveryMode mode = txProperties.getLocalMessageTable().getCron().getDeliveryMode();
+                switch (mode) {
+                    case EACH_AFTER_GROUP:
+                        Map<String, List<TransactionLocalMessageTableModel>> groupedModels = transactionLocalMessageTableModels.stream().collect(Collectors.groupingBy(TransactionLocalMessageTableModel::getDestination));
+                        groupedModels.keySet().parallelStream().forEach(localMessageKey ->
+                                groupedModels.get(localMessageKey).forEach(localMessage -> deliveryOne(localMessage, false)));
+                        break;
+                    case RANDOM_EACH:
+                        transactionLocalMessageTableModels.parallelStream().forEach(localMessage -> deliveryOne(localMessage, false));
+                        break;
+                    default:
+                        transactionLocalMessageTableModels.forEach(localMessage -> deliveryOne(localMessage, false));
+                }
 
-        }
+            }
+            return null;
+        });
     }
 
     /**
